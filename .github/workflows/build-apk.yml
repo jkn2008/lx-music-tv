@@ -1,0 +1,27 @@
+name: Build LX-Music-TV APK
+on:
+  workflow_dispatch: # ✅ 支持网页手动点击触发打包
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout源码
+        uses: actions/checkout@v4
+
+      - name: 配置JDK17（适配新版Gradle）
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: 配置Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 编译Debug版APK
+        run: ./gradlew assembleDebug
+
+      - name: 上传编译好的APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lx-music-tv-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
