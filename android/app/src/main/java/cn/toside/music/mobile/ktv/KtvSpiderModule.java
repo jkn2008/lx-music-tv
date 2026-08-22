@@ -133,6 +133,17 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
             Method initMethod = initClass.getMethod("init", Context.class);
             initMethod.invoke(null, appContext);
 
+            // 4) 宿主 com.github.catvod.Init 也需要设置 context：
+            //    解密后的真实爬虫代码会调用宿主工具类（Path.cache()/Util.getDeviceId() 等），
+            //    这些类依赖 com.github.catvod.Init.context() 拿 Context。
+            try {
+                Class<?> hostInit = getClass().getClassLoader().loadClass("com.github.catvod.Init");
+                Method hostSet = hostInit.getMethod("set", Context.class);
+                hostSet.invoke(null, appContext);
+            } catch (Throwable ignore) {
+                Log.w(TAG, "host Init.set skipped: " + ignore.getMessage());
+            }
+
             Class<?> guardClass = spiderClassLoader.loadClass(SPIDER_CLASS);
             spider = guardClass.getConstructor().newInstance();
 
@@ -180,7 +191,11 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
         Throwable u = unwrap(t);
         String m = u.getMessage();
         if (TextUtils.isEmpty(m)) m = u.getClass().getName();
-        return m;
+        // 追加完整堆栈，方便定位 "Class not found using the boot class loader" 这类
+        // 无具体类名的 JNI 错误（wexguard native 解密后真实爬虫运行时的类解析失败）
+        java.io.StringWriter sw = new java.io.StringWriter();
+        u.printStackTrace(new java.io.PrintWriter(sw));
+        return m + "\n" + sw;
     }
 
     @ReactMethod
